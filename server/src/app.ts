@@ -1,4 +1,6 @@
 import express, { Express } from 'express';
+import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
@@ -34,6 +36,18 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api', routes);
+
+// Serve frontend static build in production (or when client build exists)
+const clientBuildPath = path.join(__dirname, '../../client/dist');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/api-docs') || req.path === '/health') {
+      return next();
+    }
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use(errorHandler);
