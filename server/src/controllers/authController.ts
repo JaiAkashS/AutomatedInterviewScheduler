@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { Candidate } from '../models/Candidate';
+import { Interview } from '../models/Interview';
 import { config } from '../config';
 import { AuthRequest } from '../types';
 
@@ -114,8 +116,7 @@ export const candidateLogin = async (req: Request, res: Response, next: NextFunc
       return res.status(400).json({ success: false, message: 'Candidate email is required.' });
     }
 
-    const { Candidate } = await import('../models/Candidate');
-    const { Interview } = await import('../models/Interview');
+
 
     const candidate = await Candidate.findOne({ email: email.toLowerCase() }).select('+passwordHash');
     if (!candidate) {
@@ -185,7 +186,6 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
     }
 
     if (req.user.role === 'CANDIDATE') {
-      const { Candidate } = await import('../models/Candidate');
       const candidate = await Candidate.findById(req.user.id);
       if (!candidate) {
         return res.status(404).json({ success: false, message: 'Candidate profile not found.' });

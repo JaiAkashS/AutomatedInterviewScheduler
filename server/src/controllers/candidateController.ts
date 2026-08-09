@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import { Candidate } from '../models/Candidate';
+import { Interview } from '../models/Interview';
 
 export const createCandidate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -47,7 +48,6 @@ export const getMyInterviews = async (req: AuthRequest, res: Response, next: Nex
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
-    const { Interview } = await import('../models/Interview');
     const interviews = await Interview.find({ candidateId })
       .populate('candidateId')
       .populate('recruiterId', 'name email timezone')
