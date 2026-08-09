@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const googleController_1 = require("../controllers/googleController");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.get('/auth', auth_1.authenticateUser, googleController_1.getAuthUrl);
+router.get('/callback', googleController_1.handleCallback);
+router.post('/disconnect', auth_1.authenticateUser, googleController_1.disconnectCalendar);
+router.get('/status', auth_1.authenticateUser, googleController_1.getCalendarStatus);
+exports.default = router;

@@ -1,0 +1,110 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Automated Interview Scheduler API",
+        "version": "1.0.0",
+        "description": "Production REST API for automated recruitment interview scheduling, Google Calendar integration, and availability calculation."
+    },
+    "servers": [
+        {
+            "url": "http://localhost:5000/api",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/auth/register": {
+            "post": {
+                "summary": "Register a new recruiter",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "email": { "type": "string" },
+                                    "password": { "type": "string" },
+                                    "timezone": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "User created successfully" }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "summary": "Login recruiter",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "email": { "type": "string" },
+                                    "password": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Login successful" }
+                }
+            }
+        },
+        "/interviews": {
+            "get": {
+                "summary": "List all interviews",
+                "responses": {
+                    "200": { "description": "Interviews list" }
+                }
+            },
+            "post": {
+                "summary": "Create an interview invitation link",
+                "responses": {
+                    "201": { "description": "Interview created with scheduling link" }
+                }
+            }
+        },
+        "/schedule/{token}": {
+            "get": {
+                "summary": "Get interview metadata by scheduling token",
+                "parameters": [
+                    { "name": "token", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Interview info" }
+                }
+            }
+        },
+        "/schedule/{token}/slots": {
+            "get": {
+                "summary": "Calculate available time slots for candidate",
+                "parameters": [
+                    { "name": "token", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "timezone", "in": "query", "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Available time slots array" }
+                }
+            }
+        },
+        "/schedule/{token}/confirm": {
+            "post": {
+                "summary": "Confirm candidate slot choice",
+                "parameters": [
+                    { "name": "token", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Slot confirmed and Google Calendar event created" }
+                }
+            }
+        }
+    }
+}
