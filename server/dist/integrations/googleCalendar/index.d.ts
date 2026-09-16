@@ -12,19 +12,37 @@ export declare class GoogleCalendarService {
     private static getOAuth2Client;
     static isConfigured(): boolean;
     static getAuthUrl(state?: string): string;
+    static getAuthenticatedClientForUser(userId: string): Promise<{
+        isMock: boolean;
+        accessToken: any;
+        refreshToken: any;
+        userId: string;
+        oauth2Client: null;
+    } | {
+        isMock: boolean;
+        oauth2Client: import("google-auth-library").OAuth2Client;
+        userId: string;
+        accessToken: any;
+        refreshToken: any;
+    } | null>;
     static getTokensFromCode(code: string): Promise<{
         accessToken: string | undefined;
         refreshToken: string | undefined;
         tokenExpiry: number | undefined;
     }>;
-    static getFreeBusy(accessToken: string, refreshToken: string, calendarId: string | undefined, timeMin: Date, timeMax: Date): Promise<ITimeInterval[]>;
-    static createEvent(accessToken: string, refreshToken: string, eventDetails: CalendarEventDetails): Promise<{
+    static getFreeBusy(accessToken: string, refreshToken: string, calendarId: string | undefined, timeMin: Date, timeMax: Date, userId?: string): Promise<ITimeInterval[]>;
+    private static getMockFreeBusy;
+    private static executeFreeBusyQuery;
+    static createEvent(accessToken: string, refreshToken: string, eventDetails: CalendarEventDetails, userId?: string): Promise<{
         eventId: string;
         meetingLink: string;
     }>;
-    static updateEvent(accessToken: string, refreshToken: string, eventId: string, eventDetails: CalendarEventDetails): Promise<{
+    private static getMockEventResult;
+    private static executeCreateEvent;
+    static updateEvent(accessToken: string, refreshToken: string, eventId: string, eventDetails: CalendarEventDetails, userId?: string): Promise<{
         eventId: string;
         meetingLink: string;
     }>;
-    static deleteEvent(accessToken: string, refreshToken: string, eventId: string): Promise<boolean>;
+    private static executeUpdateEvent;
+    static deleteEvent(accessToken: string, refreshToken: string, eventId: string, userId?: string): Promise<boolean>;
 }

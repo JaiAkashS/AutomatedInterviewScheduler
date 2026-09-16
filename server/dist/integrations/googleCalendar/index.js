@@ -28,6 +28,45 @@ class GoogleCalendarService {
             state,
         });
     }
+    static async getAuthenticatedClientForUser(userId) {
+        const { User } = require('../../models/User');
+        const user = await User.findById(userId).select('+googleCalendar.accessToken +googleCalendar.refreshToken +googleCalendar.tokenExpiry');
+        if (!user || !user.googleCalendar?.accessToken) {
+            return null;
+        }
+        const accessToken = user.googleCalendar.accessToken;
+        const refreshToken = user.googleCalendar.refreshToken;
+        if (!this.isConfigured() || accessToken.startsWith('mock_')) {
+            return { isMock: true, accessToken, refreshToken, userId, oauth2Client: null };
+        }
+        const oauth2Client = this.getOAuth2Client();
+        oauth2Client.setCredentials({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+        const tokenExpiry = user.googleCalendar.tokenExpiry || 0;
+        const isExpired = Date.now() >= tokenExpiry - 300000;
+        if ((isExpired || !accessToken) && refreshToken) {
+            try {
+                const { credentials } = await oauth2Client.refreshAccessToken();
+                if (credentials.access_token) {
+                    user.googleCalendar.accessToken = credentials.access_token;
+                    if (credentials.expiry_date) {
+                        user.googleCalendar.tokenExpiry = credentials.expiry_date;
+                    }
+                    if (credentials.refresh_token) {
+                        user.googleCalendar.refreshToken = credentials.refresh_token;
+                    }
+                    await user.save();
+                    oauth2Client.setCredentials(credentials);
+                }
+            }
+            catch (refreshErr) {
+                console.error(`Failed to refresh Google OAuth token for user ${userId}:`, refreshErr);
+            }
+        }
+        return { isMock: false, oauth2Client, userId, accessToken, refreshToken };
+    }
     static async getTokensFromCode(code) {
         if (!this.isConfigured() || code.startsWith('mock_')) {
             return {
@@ -44,23 +83,37 @@ class GoogleCalendarService {
             tokenExpiry: tokens.expiry_date || undefined,
         };
     }
-    static async getFreeBusy(accessToken, refreshToken, calendarId = 'primary', timeMin, timeMax) {
+    static async getFreeBusy(accessToken, refreshToken, calendarId = 'primary', timeMin, timeMax, userId) {
+        if (userId) {
+            const authResult = await this.getAuthenticatedClientForUser(userId);
+            if (authResult?.isMock || !authResult) {
+                return this.getMockFreeBusy();
+            }
+            if (authResult.oauth2Client) {
+                return this.executeFreeBusyQuery(authResult.oauth2Client, calendarId, timeMin, timeMax);
+            }
+        }
         if (!this.isConfigured() || accessToken.startsWith('mock_')) {
-            // Return simulated busy slots for mock mode (e.g., 1 hour busy at 10:00 AM local time tomorrow)
-            const mockBusy = [];
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(10, 0, 0, 0);
-            const tomorrowEnd = new Date(tomorrow);
-            tomorrowEnd.setHours(11, 0, 0, 0);
-            mockBusy.push({ start: tomorrow, end: tomorrowEnd });
-            return mockBusy;
+            return this.getMockFreeBusy();
         }
         const oauth2Client = this.getOAuth2Client();
         oauth2Client.setCredentials({
             access_token: accessToken,
             refresh_token: refreshToken,
         });
+        return this.executeFreeBusyQuery(oauth2Client, calendarId, timeMin, timeMax);
+    }
+    static getMockFreeBusy() {
+        const mockBusy = [];
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(10, 0, 0, 0);
+        const tomorrowEnd = new Date(tomorrow);
+        tomorrowEnd.setHours(11, 0, 0, 0);
+        mockBusy.push({ start: tomorrow, end: tomorrowEnd });
+        return mockBusy;
+    }
+    static async executeFreeBusyQuery(oauth2Client, calendarId, timeMin, timeMax) {
         const calendar = googleapis_1.google.calendar({ version: 'v3', auth: oauth2Client });
         const response = await calendar.freebusy.query({
             requestBody: {
@@ -75,17 +128,43 @@ class GoogleCalendarService {
             end: new Date(slot.end || timeMax),
         }));
     }
-    static async createEvent(accessToken, refreshToken, eventDetails) {
+    static async createEvent(accessToken, refreshToken, eventDetails, userId) {
+        if (userId) {
+            const authResult = await this.getAuthenticatedClientForUser(userId);
+            if (authResult?.isMock) {
+                return this.getMockEventResult();
+            }
+            if (authResult?.oauth2Client) {
+                return this.executeCreateEvent(authResult.oauth2Client, eventDetails);
+            }
+        }
         if (!this.isConfigured() || accessToken.startsWith('mock_')) {
-            const mockEventId = `mock_event_${Math.random().toString(36).substring(2, 9)}`;
-            const mockMeetLink = `https://meet.google.com/mock-int-${Math.random().toString(36).substring(2, 7)}`;
-            return { eventId: mockEventId, meetingLink: mockMeetLink };
+            return this.getMockEventResult();
         }
         const oauth2Client = this.getOAuth2Client();
         oauth2Client.setCredentials({
             access_token: accessToken,
             refresh_token: refreshToken,
         });
+        if (refreshToken) {
+            try {
+                const { credentials } = await oauth2Client.refreshAccessToken();
+                if (credentials.access_token) {
+                    oauth2Client.setCredentials(credentials);
+                }
+            }
+            catch (err) {
+                console.warn('OAuth refresh token attempt warning:', err);
+            }
+        }
+        return this.executeCreateEvent(oauth2Client, eventDetails);
+    }
+    static getMockEventResult() {
+        const mockEventId = `mock_event_${Math.random().toString(36).substring(2, 9)}`;
+        const mockMeetLink = `https://meet.google.com/mock-int-${Math.random().toString(36).substring(2, 7)}`;
+        return { eventId: mockEventId, meetingLink: mockMeetLink };
+    }
+    static async executeCreateEvent(oauth2Client, eventDetails) {
         const calendar = googleapis_1.google.calendar({ version: 'v3', auth: oauth2Client });
         const response = await calendar.events.insert({
             calendarId: 'primary',
@@ -106,7 +185,7 @@ class GoogleCalendarService {
                 attendees: eventDetails.attendees.map((email) => ({ email })),
                 conferenceData: {
                     createRequest: {
-                        requestId: `req-${Date.now()}`,
+                        requestId: `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                         conferenceSolutionKey: { type: 'hangoutsMeet' },
                     },
                 },
@@ -118,16 +197,27 @@ class GoogleCalendarService {
             `https://meet.google.com/meet-${eventId}`;
         return { eventId, meetingLink };
     }
-    static async updateEvent(accessToken, refreshToken, eventId, eventDetails) {
+    static async updateEvent(accessToken, refreshToken, eventId, eventDetails, userId) {
+        if (userId) {
+            const authResult = await this.getAuthenticatedClientForUser(userId);
+            if (authResult?.isMock) {
+                return { eventId, meetingLink: `https://meet.google.com/mock-int-rescheduled` };
+            }
+            if (authResult?.oauth2Client) {
+                return this.executeUpdateEvent(authResult.oauth2Client, eventId, eventDetails);
+            }
+        }
         if (!this.isConfigured() || accessToken.startsWith('mock_')) {
-            const mockMeetLink = `https://meet.google.com/mock-int-rescheduled`;
-            return { eventId, meetingLink: mockMeetLink };
+            return { eventId, meetingLink: `https://meet.google.com/mock-int-rescheduled` };
         }
         const oauth2Client = this.getOAuth2Client();
         oauth2Client.setCredentials({
             access_token: accessToken,
             refresh_token: refreshToken,
         });
+        return this.executeUpdateEvent(oauth2Client, eventId, eventDetails);
+    }
+    static async executeUpdateEvent(oauth2Client, eventId, eventDetails) {
         const calendar = googleapis_1.google.calendar({ version: 'v3', auth: oauth2Client });
         const response = await calendar.events.update({
             calendarId: 'primary',
@@ -152,11 +242,25 @@ class GoogleCalendarService {
             `https://meet.google.com/meet-${eventId}`;
         return { eventId, meetingLink };
     }
-    static async deleteEvent(accessToken, refreshToken, eventId) {
-        if (!this.isConfigured() || accessToken.startsWith('mock_')) {
-            return true;
-        }
+    static async deleteEvent(accessToken, refreshToken, eventId, userId) {
         try {
+            if (userId) {
+                const authResult = await this.getAuthenticatedClientForUser(userId);
+                if (authResult?.isMock)
+                    return true;
+                if (authResult?.oauth2Client) {
+                    const calendar = googleapis_1.google.calendar({ version: 'v3', auth: authResult.oauth2Client });
+                    await calendar.events.delete({
+                        calendarId: 'primary',
+                        eventId,
+                        sendUpdates: 'all',
+                    });
+                    return true;
+                }
+            }
+            if (!this.isConfigured() || accessToken.startsWith('mock_')) {
+                return true;
+            }
             const oauth2Client = this.getOAuth2Client();
             oauth2Client.setCredentials({
                 access_token: accessToken,

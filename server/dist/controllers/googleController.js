@@ -24,12 +24,14 @@ const handleCallback = async (req, res, next) => {
         }
         const tokens = await googleCalendar_1.GoogleCalendarService.getTokensFromCode(code);
         if (userId) {
+            const existingUser = await User_1.User.findById(userId).select('+googleCalendar.refreshToken');
+            const refreshToken = tokens.refreshToken || existingUser?.googleCalendar?.refreshToken;
             await User_1.User.findByIdAndUpdate(userId, {
                 googleCalendar: {
                     connected: true,
                     calendarId: 'primary',
                     accessToken: tokens.accessToken,
-                    refreshToken: tokens.refreshToken,
+                    refreshToken: refreshToken,
                     tokenExpiry: tokens.tokenExpiry,
                 },
             });

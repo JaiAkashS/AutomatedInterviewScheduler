@@ -179,15 +179,19 @@ export class SchedulingService {
             passesCandidateCustom = candidateCustomAvail.some((candAvail) => {
               const [candSH, candSM] = candAvail.startTime.split(':').map(Number);
               const [candEH, candEM] = candAvail.endTime.split(':').map(Number);
-              
-              const slotInCandTz = toZonedTime(slotStart, candAvail.timezone);
-              const dateStr = formatZonedTime(slotInCandTz, 'yyyy-MM-dd', { timeZone: candAvail.timezone });
+
+              const slotStartInCandTz = toZonedTime(slotStart, candAvail.timezone);
+              const slotEndInCandTz = toZonedTime(slotEnd, candAvail.timezone);
+              const dateStr = formatZonedTime(slotStartInCandTz, 'yyyy-MM-dd', { timeZone: candAvail.timezone });
 
               if (dateStr !== candAvail.date) return false;
 
+              const candStartMins = slotStartInCandTz.getHours() * 60 + slotStartInCandTz.getMinutes();
+              const candEndMins = slotEndInCandTz.getHours() * 60 + slotEndInCandTz.getMinutes();
+
               const cStartMins = candSH * 60 + candSM;
               const cEndMins = candEH * 60 + candEM;
-              return startMinutesOfDay >= cStartMins && endMinutesOfDay <= cEndMins;
+              return candStartMins >= cStartMins && candEndMins <= cEndMins;
             });
           }
 

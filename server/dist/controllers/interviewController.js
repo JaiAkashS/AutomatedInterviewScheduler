@@ -127,7 +127,7 @@ const cancelInterview = async (req, res, next) => {
             try {
                 const recruiter = await User_1.User.findById(interview.recruiterId).select('+googleCalendar.accessToken +googleCalendar.refreshToken');
                 if (recruiter?.googleCalendar?.accessToken) {
-                    await googleCalendar_1.GoogleCalendarService.deleteEvent(recruiter.googleCalendar.accessToken, recruiter.googleCalendar.refreshToken || '', interview.googleEventId);
+                    await googleCalendar_1.GoogleCalendarService.deleteEvent(recruiter.googleCalendar.accessToken, recruiter.googleCalendar.refreshToken || '', interview.googleEventId, interview.recruiterId.toString());
                 }
             }
             catch (gErr) {
