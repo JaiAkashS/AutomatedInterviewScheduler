@@ -158,7 +158,8 @@ export const cancelInterview = async (req: AuthRequest, res: Response, next: Nex
           await GoogleCalendarService.deleteEvent(
             recruiter.googleCalendar.accessToken,
             recruiter.googleCalendar.refreshToken || '',
-            interview.googleEventId
+            interview.googleEventId,
+            interview.recruiterId.toString()
           );
         }
       } catch (gErr) {

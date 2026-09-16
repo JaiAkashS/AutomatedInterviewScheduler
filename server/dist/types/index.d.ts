@@ -1,3 +1,4 @@
+/// <reference types="cookie-parser" />
 import { Request } from 'express';
 export type UserRole = 'RECRUITER' | 'INTERVIEWER' | 'ADMIN' | 'CANDIDATE';
 export interface IGoogleCalendarToken {

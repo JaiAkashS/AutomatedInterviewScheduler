@@ -26,12 +26,15 @@ export const handleCallback = async (req: AuthRequest, res: Response, next: Next
     const tokens = await GoogleCalendarService.getTokensFromCode(code);
 
     if (userId) {
+      const existingUser = await User.findById(userId).select('+googleCalendar.refreshToken');
+      const refreshToken = tokens.refreshToken || existingUser?.googleCalendar?.refreshToken;
+
       await User.findByIdAndUpdate(userId, {
         googleCalendar: {
           connected: true,
           calendarId: 'primary',
           accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+          refreshToken: refreshToken,
           tokenExpiry: tokens.tokenExpiry,
         },
       });

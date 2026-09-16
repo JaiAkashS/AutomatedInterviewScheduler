@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
@@ -31,6 +33,17 @@ app.get('/health', (req, res) => {
 });
 // API Routes
 app.use('/api', routes_1.default);
+// Serve frontend static build in production (or when client build exists)
+const clientBuildPath = path_1.default.join(__dirname, '../../client/dist');
+if (fs_1.default.existsSync(clientBuildPath)) {
+    app.use(express_1.default.static(clientBuildPath));
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/api-docs') || req.path === '/health') {
+            return next();
+        }
+        res.sendFile(path_1.default.join(clientBuildPath, 'index.html'));
+    });
+}
 // Error handling middleware
 app.use(errorHandler_1.errorHandler);
 // Start server if not running in test mode

@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { googleApi } from '../api/googleApi';
 import { Button } from '../components/Button';
 import { TimezoneSelector } from '../components/TimezoneSelector';
-import { CalendarCheck, ShieldCheck, CheckCircle, RefreshCw } from 'lucide-react';
+import { CalendarCheck, ShieldCheck, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { user, refreshUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; calendarId: string; configured: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [timezone, setTimezone] = useState(user?.timezone || 'Asia/Kolkata');
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const fetchGoogleStatus = async () => {
     try {
@@ -25,7 +28,17 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     fetchGoogleStatus();
-  }, []);
+
+    const googleParam = searchParams.get('google');
+    const errorParam = searchParams.get('error');
+
+    if (googleParam === 'connected') {
+      setNotice({ type: 'success', message: 'Google Calendar successfully connected and synchronized!' });
+      refreshUser();
+    } else if (errorParam) {
+      setNotice({ type: 'error', message: `Google OAuth connection failed (${errorParam}). Please try again.` });
+    }
+  }, [searchParams]);
 
   const handleConnectGoogle = async () => {
     setActionLoading(true);
@@ -48,6 +61,7 @@ export const SettingsPage: React.FC = () => {
         await googleApi.disconnect();
         await refreshUser();
         await fetchGoogleStatus();
+        setNotice({ type: 'success', message: 'Google Calendar disconnected.' });
       } catch (err) {
         alert('Failed to disconnect Google Calendar');
       } finally {
@@ -58,6 +72,23 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
+      {notice && (
+        <div
+          className={`p-4 rounded-2xl border text-xs flex items-center justify-between ${
+            notice.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {notice.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+            <span>{notice.message}</span>
+          </div>
+          <button onClick={() => setNotice(null)} className="text-slate-400 hover:text-white font-bold ml-4">
+            ×
+          </button>
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-extrabold text-white tracking-tight">Account & Integrations</h1>
         <p className="text-xs text-slate-400 mt-1">Manage Google Calendar OAuth connection and default timezone settings</p>

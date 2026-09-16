@@ -129,9 +129,24 @@ export const confirmSlotByToken = async (req: Request, res: Response, next: Next
       }
     });
 
-    const recruiterTokens = await User.findById(recruiterObj._id).select(
+    // Find target user for Google Calendar (recruiter or any connected interviewer)
+    let targetUserId = recruiterObj._id.toString();
+    let targetTokens = await User.findById(targetUserId).select(
       '+googleCalendar.accessToken +googleCalendar.refreshToken'
     );
+
+    if (!targetTokens?.googleCalendar?.accessToken) {
+      for (const intvw of interviewerObjs) {
+        const intvwUser = await User.findById(intvw._id).select(
+          '+googleCalendar.accessToken +googleCalendar.refreshToken'
+        );
+        if (intvwUser?.googleCalendar?.accessToken) {
+          targetUserId = intvw._id.toString();
+          targetTokens = intvwUser;
+          break;
+        }
+      }
+    }
 
     let eventId = interview.googleEventId;
     let meetingLink = interview.meetingLink || 'https://meet.google.com/interview';
@@ -145,30 +160,43 @@ export const confirmSlotByToken = async (req: Request, res: Response, next: Next
       attendees: attendeeEmails,
     };
 
-    if (recruiterTokens?.googleCalendar?.accessToken) {
+    let googleCalendarSynced = false;
+    if (targetTokens?.googleCalendar?.accessToken) {
+      console.log(`[GoogleCalendar] Attempting event creation for user ${targetUserId}...`);
       try {
         if (eventId && interview.status === 'RESCHEDULE_REQUESTED') {
           const updated = await GoogleCalendarService.updateEvent(
-            recruiterTokens.googleCalendar.accessToken,
-            recruiterTokens.googleCalendar.refreshToken || '',
+            targetTokens.googleCalendar.accessToken,
+            targetTokens.googleCalendar.refreshToken || '',
             eventId,
-            eventDetails
+            eventDetails,
+            targetUserId
           );
           meetingLink = updated.meetingLink;
+          googleCalendarSynced = true;
+          console.log(`[GoogleCalendar] Event successfully updated: ${eventId}`);
         } else {
           const created = await GoogleCalendarService.createEvent(
-            recruiterTokens.googleCalendar.accessToken,
-            recruiterTokens.googleCalendar.refreshToken || '',
-            eventDetails
+            targetTokens.googleCalendar.accessToken,
+            targetTokens.googleCalendar.refreshToken || '',
+            eventDetails,
+            targetUserId
           );
           eventId = created.eventId;
           meetingLink = created.meetingLink;
+          googleCalendarSynced = true;
+          console.log(`[GoogleCalendar] Event successfully created: ${eventId}`);
         }
-      } catch (gErr) {
-        console.error('Failed to create/update Google Calendar event:', gErr);
+      } catch (gErr: any) {
+        console.error('[GoogleCalendar Error] Failed to create/update event:', gErr?.message || gErr);
       }
     } else {
-      // Mock event creation if no OAuth token present
+      console.warn(
+        `[GoogleCalendar Notice] Recruiter (${recruiterObj.email}) has not connected Google Calendar in Settings. Event was not sent to Google Calendar.`
+      );
+    }
+
+    if (!googleCalendarSynced && (!eventId || eventId.startsWith('evt_mock_') || eventId.startsWith('mock_'))) {
       eventId = eventId || `evt_mock_${Date.now()}`;
       meetingLink = meetingLink || `https://meet.google.com/mock-interview-${Date.now()}`;
     }
@@ -186,12 +214,15 @@ export const confirmSlotByToken = async (req: Request, res: Response, next: Next
 
     return res.status(200).json({
       success: true,
-      message: 'Interview successfully scheduled!',
+      message: googleCalendarSynced
+        ? 'Interview successfully scheduled and synced to Google Calendar!'
+        : 'Interview successfully scheduled! (Connect Google Calendar in Settings to sync with Google Calendar)',
       interview: await Interview.findById(interview._id)
         .populate('candidateId')
         .populate('recruiterId', 'name email')
         .populate('interviewerIds', 'name email'),
       meetingLink,
+      googleCalendarSynced,
     });
   } catch (error) {
     next(error);
@@ -246,7 +277,8 @@ export const cancelByToken = async (req: Request, res: Response, next: NextFunct
           await GoogleCalendarService.deleteEvent(
             recruiter.googleCalendar.accessToken,
             recruiter.googleCalendar.refreshToken || '',
-            interview.googleEventId
+            interview.googleEventId,
+            interview.recruiterId.toString()
           );
         }
       } catch (gErr) {
