@@ -4,13 +4,16 @@ import { Candidate } from '../types';
 import { Button } from '../components/Button';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { CandidateFormModal } from '../components/CandidateFormModal';
-import { Users, UserPlus, Mail, Globe, Calendar } from 'lucide-react';
+import { ScorecardViewModal } from '../components/ScorecardViewModal';
+import { Users, UserPlus, Mail, Globe, Calendar, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const CandidatesPage: React.FC = () => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [scorecardCandidate, setScorecardCandidate] = useState<Candidate | null>(null);
+
 
   const fetchCandidates = async () => {
     try {
@@ -94,6 +97,17 @@ export const CandidatesPage: React.FC = () => {
                     "{candidate.notes}"
                   </p>
                 )}
+
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setScorecardCandidate(candidate)}
+                    icon={<FileText className="w-3.5 h-3.5 text-amber-400" />}
+                  >
+                    View Scorecards
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -105,6 +119,16 @@ export const CandidatesPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => fetchCandidates()}
       />
+
+      {scorecardCandidate && (
+        <ScorecardViewModal
+          isOpen={Boolean(scorecardCandidate)}
+          onClose={() => setScorecardCandidate(null)}
+          candidateId={scorecardCandidate._id}
+          candidateName={scorecardCandidate.name}
+        />
+      )}
     </div>
   );
 };
+

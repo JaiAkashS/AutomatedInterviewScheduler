@@ -51,3 +51,27 @@ export interface ISchedulingWindow {
   startDate: Date;
   endDate: Date;
 }
+
+export type FeedbackRecommendation =
+  | 'STRONG_YES'
+  | 'YES'
+  | 'NEUTRAL'
+  | 'NO'
+  | 'STRONG_NO';
+
+export interface IFeedbackRating {
+  category: string;
+  score: number; // 1 to 5
+  comment?: string;
+}
+
+export interface IFeedbackInput {
+  interviewId: string;
+  overallRecommendation: FeedbackRecommendation;
+  notes: string;
+  strengths?: string[];
+  redFlags?: string[];
+  ratings?: IFeedbackRating[];
+  markAsCompleted?: boolean;
+}
+

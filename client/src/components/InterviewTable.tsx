@@ -3,7 +3,7 @@ import { Interview } from '../types';
 import { Badge } from './Badge';
 import { CopyLinkButton } from './CopyLinkButton';
 import { Button } from './Button';
-import { Calendar, Clock, Video, XCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Video, XCircle, RefreshCw, Edit3, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface InterviewTableProps {
@@ -11,6 +11,8 @@ interface InterviewTableProps {
   onCancel: (id: string) => void;
   onReschedule: (id: string) => void;
   onSelect: (interview: Interview) => void;
+  onOpenFeedback?: (interview: Interview) => void;
+  onOpenScorecard?: (interview: Interview) => void;
 }
 
 export const InterviewTable: React.FC<InterviewTableProps> = ({
@@ -18,7 +20,10 @@ export const InterviewTable: React.FC<InterviewTableProps> = ({
   onCancel,
   onReschedule,
   onSelect,
+  onOpenFeedback,
+  onOpenScorecard,
 }) => {
+
   if (interviews.length === 0) {
     return (
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center">
@@ -104,6 +109,32 @@ export const InterviewTable: React.FC<InterviewTableProps> = ({
                         </a>
                       )}
 
+                      {/* Feedback & Scorecard Actions */}
+                      {(item.status === 'SCHEDULED' || item.status === 'COMPLETED') && (
+                        <>
+                          {onOpenFeedback && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onOpenFeedback(item)}
+                              icon={<Edit3 className="w-3.5 h-3.5 text-brand-400" />}
+                              title="Submit / Edit Feedback"
+                            >
+                              <span className="hidden xl:inline text-xs">Feedback</span>
+                            </Button>
+                          )}
+                          {onOpenScorecard && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onOpenScorecard(item)}
+                              icon={<FileText className="w-3.5 h-3.5 text-amber-400" />}
+                              title="View Scorecard"
+                            />
+                          )}
+                        </>
+                      )}
+
                       {item.status === 'SCHEDULED' && (
                         <>
                           <Button
@@ -123,6 +154,7 @@ export const InterviewTable: React.FC<InterviewTableProps> = ({
                         </>
                       )}
                     </div>
+
                   </td>
                 </tr>
               );

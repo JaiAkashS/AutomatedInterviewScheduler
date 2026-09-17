@@ -5,6 +5,8 @@ import { Interview } from '../types';
 import { InterviewTable } from '../components/InterviewTable';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Button } from '../components/Button';
+import { FeedbackModal } from '../components/FeedbackModal';
+import { ScorecardViewModal } from '../components/ScorecardViewModal';
 import { PlusCircle, Search } from 'lucide-react';
 
 export const InterviewsPage: React.FC = () => {
@@ -12,6 +14,9 @@ export const InterviewsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [feedbackInterview, setFeedbackInterview] = useState<Interview | null>(null);
+  const [scorecardInterview, setScorecardInterview] = useState<Interview | null>(null);
+
 
   const fetchInterviews = async () => {
     try {
@@ -126,9 +131,36 @@ export const InterviewsPage: React.FC = () => {
           interviews={filteredInterviews}
           onCancel={handleCancel}
           onReschedule={handleReschedule}
-          onSelect={() => {}}
+          onSelect={(item) => setScorecardInterview(item)}
+          onOpenFeedback={(item) => setFeedbackInterview(item)}
+          onOpenScorecard={(item) => setScorecardInterview(item)}
+        />
+      )}
+
+      {/* Interviewer Feedback Submission Modal */}
+      {feedbackInterview && (
+        <FeedbackModal
+          isOpen={Boolean(feedbackInterview)}
+          onClose={() => setFeedbackInterview(null)}
+          interview={feedbackInterview}
+          onSuccess={() => {
+            fetchInterviews();
+          }}
+        />
+      )}
+
+      {/* Candidate Scorecard Viewer Modal */}
+      {scorecardInterview && (
+        <ScorecardViewModal
+          isOpen={Boolean(scorecardInterview)}
+          onClose={() => setScorecardInterview(null)}
+          interview={scorecardInterview}
+          onOpenSubmitFeedback={() => {
+            setFeedbackInterview(scorecardInterview);
+          }}
         />
       )}
     </div>
   );
 };
+

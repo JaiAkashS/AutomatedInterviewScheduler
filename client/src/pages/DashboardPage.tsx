@@ -6,6 +6,8 @@ import { InterviewTable } from '../components/InterviewTable';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import { Button } from '../components/Button';
+import { FeedbackModal } from '../components/FeedbackModal';
+import { ScorecardViewModal } from '../components/ScorecardViewModal';
 import { useAuth } from '../context/AuthContext';
 import {
   CalendarCheck,
@@ -15,14 +17,19 @@ import {
   PlusCircle,
   AlertTriangle,
   ArrowRight,
+  Edit3,
+  FileText,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+  const [feedbackInterview, setFeedbackInterview] = useState<Interview | null>(null);
+  const [scorecardInterview, setScorecardInterview] = useState<Interview | null>(null);
 
   const { user } = useAuth();
+
 
   const fetchInterviews = async () => {
     try {
@@ -164,6 +171,8 @@ export const DashboardPage: React.FC = () => {
             onCancel={handleCancel}
             onReschedule={handleReschedule}
             onSelect={setSelectedInterview}
+            onOpenFeedback={(item) => setFeedbackInterview(item)}
+            onOpenScorecard={(item) => setScorecardInterview(item)}
           />
         )}
       </div>
@@ -210,9 +219,69 @@ export const DashboardPage: React.FC = () => {
                 </a>
               </div>
             )}
+
+            {/* Scorecard Quick Actions */}
+            {(selectedInterview.status === 'SCHEDULED' || selectedInterview.status === 'COMPLETED') && (
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">Interviewer Feedback & Scorecard</h4>
+                  <p className="text-[11px] text-slate-400">Log private evaluation notes or review team scores.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const item = selectedInterview;
+                      setSelectedInterview(null);
+                      setScorecardInterview(item);
+                    }}
+                    icon={<FileText className="w-3.5 h-3.5 text-amber-400" />}
+                  >
+                    View Scorecard
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const item = selectedInterview;
+                      setSelectedInterview(null);
+                      setFeedbackInterview(item);
+                    }}
+                    icon={<Edit3 className="w-3.5 h-3.5" />}
+                  >
+                    Log Feedback
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
+      )}
+
+      {/* Interviewer Feedback Submission Modal */}
+      {feedbackInterview && (
+        <FeedbackModal
+          isOpen={Boolean(feedbackInterview)}
+          onClose={() => setFeedbackInterview(null)}
+          interview={feedbackInterview}
+          onSuccess={() => {
+            fetchInterviews();
+          }}
+        />
+      )}
+
+      {/* Candidate Scorecard Viewer Modal */}
+      {scorecardInterview && (
+        <ScorecardViewModal
+          isOpen={Boolean(scorecardInterview)}
+          onClose={() => setScorecardInterview(null)}
+          interview={scorecardInterview}
+          onOpenSubmitFeedback={() => {
+            setFeedbackInterview(scorecardInterview);
+          }}
+        />
       )}
     </div>
   );
 };
+

@@ -84,3 +84,47 @@ export interface TimeSlot {
   timezone: string;
   available: boolean;
 }
+
+export type FeedbackRecommendation =
+  | 'STRONG_YES'
+  | 'YES'
+  | 'NEUTRAL'
+  | 'NO'
+  | 'STRONG_NO';
+
+export interface FeedbackRating {
+  category: string;
+  score: number; // 1 to 5
+  comment?: string;
+}
+
+export interface Feedback {
+  _id: string;
+  interviewId: string | Interview;
+  interviewerId: {
+    _id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+  };
+  candidateId: string | Candidate;
+  overallRecommendation: FeedbackRecommendation;
+  ratings: FeedbackRating[];
+  strengths: string[];
+  redFlags: string[];
+  notes: string;
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackInput {
+  interviewId: string;
+  overallRecommendation: FeedbackRecommendation;
+  notes: string;
+  strengths?: string[];
+  redFlags?: string[];
+  ratings?: FeedbackRating[];
+  markAsCompleted?: boolean;
+}
+
