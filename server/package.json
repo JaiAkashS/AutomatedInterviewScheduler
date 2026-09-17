@@ -5,8 +5,9 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "build": "npm install && node node_modules/typescript/bin/tsc",
+    "build": "npm install && node node_modules/typescript/bin/tsc && (npm --prefix ../client install && npm --prefix ../client run build || true)",
     "start": "node dist/app.js",
+
     "seed": "ts-node src/seed.ts",
     "test": "jest --detectOpenHandles --forceExit"
   },

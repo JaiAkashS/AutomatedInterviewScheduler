@@ -38,16 +38,45 @@ app.get('/health', (req, res) => {
 app.use('/api', routes);
 
 // Serve frontend static build in production (or when client build exists)
-const clientBuildPath = path.join(__dirname, '../../client/dist');
-if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
+const possibleClientPaths = [
+  path.resolve(__dirname, '../../client/dist'),
+  path.resolve(__dirname, '../client/dist'),
+  path.resolve(process.cwd(), '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+];
+const clientBuildPath = possibleClientPaths.find((p) => fs.existsSync(p));
+
+if (clientBuildPath) {
+  // Serve static assets with explicit content-type headers
+  app.use(
+    express.static(clientBuildPath, {
+      maxAge: '1d',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+          res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+        } else if (filePath.endsWith('.css')) {
+          res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+        }
+      },
+    })
+  );
+
+  // SPA fallback for frontend client routing
   app.get('*', (req, res, next) => {
+    // Skip backend routes
     if (req.path.startsWith('/api') || req.path.startsWith('/api-docs') || req.path === '/health') {
       return next();
     }
+
+    // Never serve index.html for static asset requests that were not found (prevents MIME errors)
+    if (req.path.startsWith('/assets/') || req.path.includes('.')) {
+      return res.status(404).type('text/plain').send(`Static asset '${req.path}' not found.`);
+    }
+
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 }
+
 
 // Error handling middleware
 app.use(errorHandler);
