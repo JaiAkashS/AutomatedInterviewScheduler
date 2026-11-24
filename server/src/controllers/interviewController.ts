@@ -7,6 +7,7 @@ import { User } from '../models/User';
 import { InterviewStateMachine } from '../services/stateMachine';
 import { GoogleCalendarService } from '../integrations/googleCalendar';
 import { config } from '../config';
+import { sendCandidateInviteEmail, sendCandidateRescheduleEmail, EmailSendResult } from '../services/emailService';
 
 export const createInterview = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -90,10 +91,36 @@ export const createInterview = async (req: AuthRequest, res: Response, next: Nex
 
     const schedulingUrl = `${config.clientUrl}/schedule/${schedulingToken}`;
 
+    // Send invitation email with scheduling link to the candidate
+    const candidateObj = populated?.candidateId as any;
+    const recruiterObj = populated?.recruiterId as any;
+
+    let emailResult: EmailSendResult = { success: false };
+    if (candidateObj?.email) {
+      try {
+        emailResult = await sendCandidateInviteEmail({
+          candidateName: candidateObj.name || 'Candidate',
+          candidateEmail: candidateObj.email,
+          interviewTitle: interview.title,
+          interviewType: interview.type,
+          duration: interview.duration,
+          recruiterName: recruiterObj?.name,
+          recruiterEmail: recruiterObj?.email,
+          schedulingUrl,
+          expiresAt: interview.tokenExpiresAt,
+          timezone: interview.timezone,
+        });
+      } catch (mailErr: any) {
+        console.error('[interviewController] Failed to dispatch candidate invite email:', mailErr?.message || mailErr);
+      }
+    }
+
     return res.status(201).json({
       success: true,
       interview: populated,
       schedulingUrl,
+      emailSent: emailResult.success,
+      emailPreviewUrl: emailResult.previewUrl || undefined,
     });
   } catch (error) {
     next(error);
@@ -196,13 +223,42 @@ export const rescheduleInterviewRequest = async (req: AuthRequest, res: Response
     interview.selectedSlot = undefined;
     await interview.save();
 
+    const populated = await Interview.findById(interview._id)
+      .populate('candidateId')
+      .populate('recruiterId', 'name email role timezone');
+
     const schedulingUrl = `${config.clientUrl}/schedule/${interview.schedulingToken}`;
+
+    const candidateObj = populated?.candidateId as any;
+    const recruiterObj = populated?.recruiterId as any;
+
+    let emailSent = false;
+    if (candidateObj?.email) {
+      try {
+        const mailRes = await sendCandidateRescheduleEmail({
+          candidateName: candidateObj.name || 'Candidate',
+          candidateEmail: candidateObj.email,
+          interviewTitle: interview.title,
+          interviewType: interview.type,
+          duration: interview.duration,
+          recruiterName: recruiterObj?.name,
+          recruiterEmail: recruiterObj?.email,
+          schedulingUrl,
+          expiresAt: interview.tokenExpiresAt,
+          timezone: interview.timezone,
+        });
+        emailSent = mailRes.success;
+      } catch (mailErr: any) {
+        console.error('[interviewController] Failed to dispatch reschedule email:', mailErr?.message || mailErr);
+      }
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Interview status set to RESCHEDULE_REQUESTED.',
       schedulingUrl,
       interview,
+      emailSent,
     });
   } catch (error) {
     next(error);

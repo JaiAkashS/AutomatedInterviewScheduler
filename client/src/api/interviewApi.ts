@@ -2,7 +2,7 @@ import api from './axios';
 import { Interview } from '../types';
 
 export const interviewApi = {
-  createInterview: async (data: any): Promise<{ success: boolean; interview: Interview; schedulingUrl: string }> => {
+  createInterview: async (data: any): Promise<{ success: boolean; interview: Interview; schedulingUrl: string; emailSent?: boolean; emailPreviewUrl?: string }> => {
     const res = await api.post('/interviews', data);
     return res.data;
   },

@@ -9,4 +9,12 @@ export declare const config: {
     clientUrl: string;
     serverUrl: string;
     nodeEnv: string;
+    smtp: {
+        host: string;
+        port: number;
+        secure: boolean;
+        user: string;
+        pass: string;
+        from: string;
+    };
 };

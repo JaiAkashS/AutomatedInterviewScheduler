@@ -11,6 +11,7 @@ const User_1 = require("../models/User");
 const stateMachine_1 = require("../services/stateMachine");
 const googleCalendar_1 = require("../integrations/googleCalendar");
 const config_1 = require("../config");
+const emailService_1 = require("../services/emailService");
 const createInterview = async (req, res, next) => {
     try {
         const { candidateId, candidateName, candidateEmail, candidateTimezone, title, type, duration, interviewerIds, schedulingWindowDays, startDate, endDate, workingHours, minimumNotice, timezone, expirationDays, } = req.body;
@@ -67,10 +68,35 @@ const createInterview = async (req, res, next) => {
             .populate('recruiterId', 'name email role timezone')
             .populate('interviewerIds', 'name email role timezone googleCalendar.connected');
         const schedulingUrl = `${config_1.config.clientUrl}/schedule/${schedulingToken}`;
+        // Send invitation email with scheduling link to the candidate
+        const candidateObj = populated?.candidateId;
+        const recruiterObj = populated?.recruiterId;
+        let emailResult = { success: false };
+        if (candidateObj?.email) {
+            try {
+                emailResult = await (0, emailService_1.sendCandidateInviteEmail)({
+                    candidateName: candidateObj.name || 'Candidate',
+                    candidateEmail: candidateObj.email,
+                    interviewTitle: interview.title,
+                    interviewType: interview.type,
+                    duration: interview.duration,
+                    recruiterName: recruiterObj?.name,
+                    recruiterEmail: recruiterObj?.email,
+                    schedulingUrl,
+                    expiresAt: interview.tokenExpiresAt,
+                    timezone: interview.timezone,
+                });
+            }
+            catch (mailErr) {
+                console.error('[interviewController] Failed to dispatch candidate invite email:', mailErr?.message || mailErr);
+            }
+        }
         return res.status(201).json({
             success: true,
             interview: populated,
             schedulingUrl,
+            emailSent: emailResult.success,
+            emailPreviewUrl: emailResult.previewUrl || undefined,
         });
     }
     catch (error) {
@@ -159,12 +185,39 @@ const rescheduleInterviewRequest = async (req, res, next) => {
         interview.status = 'RESCHEDULE_REQUESTED';
         interview.selectedSlot = undefined;
         await interview.save();
+        const populated = await Interview_1.Interview.findById(interview._id)
+            .populate('candidateId')
+            .populate('recruiterId', 'name email role timezone');
         const schedulingUrl = `${config_1.config.clientUrl}/schedule/${interview.schedulingToken}`;
+        const candidateObj = populated?.candidateId;
+        const recruiterObj = populated?.recruiterId;
+        let emailSent = false;
+        if (candidateObj?.email) {
+            try {
+                const mailRes = await (0, emailService_1.sendCandidateRescheduleEmail)({
+                    candidateName: candidateObj.name || 'Candidate',
+                    candidateEmail: candidateObj.email,
+                    interviewTitle: interview.title,
+                    interviewType: interview.type,
+                    duration: interview.duration,
+                    recruiterName: recruiterObj?.name,
+                    recruiterEmail: recruiterObj?.email,
+                    schedulingUrl,
+                    expiresAt: interview.tokenExpiresAt,
+                    timezone: interview.timezone,
+                });
+                emailSent = mailRes.success;
+            }
+            catch (mailErr) {
+                console.error('[interviewController] Failed to dispatch reschedule email:', mailErr?.message || mailErr);
+            }
+        }
         return res.status(200).json({
             success: true,
             message: 'Interview status set to RESCHEDULE_REQUESTED.',
             schedulingUrl,
             interview,
+            emailSent,
         });
     }
     catch (error) {

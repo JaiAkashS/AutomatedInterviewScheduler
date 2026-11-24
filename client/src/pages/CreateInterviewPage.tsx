@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { TimezoneSelector } from '../components/TimezoneSelector';
 import { CopyLinkButton } from '../components/CopyLinkButton';
 import { CandidateFormModal } from '../components/CandidateFormModal';
-import { Calendar, UserPlus, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Calendar, UserPlus, CheckCircle, ArrowLeft, Mail, ExternalLink } from 'lucide-react';
 
 export const CreateInterviewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export const CreateInterviewPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [createdResult, setCreatedResult] = useState<{ interview: any; schedulingUrl: string } | null>(null);
+  const [createdResult, setCreatedResult] = useState<{ interview: any; schedulingUrl: string; emailSent?: boolean; emailPreviewUrl?: string } | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
 
   useEffect(() => {
@@ -137,6 +137,28 @@ export const CreateInterviewPage: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">
               Send this unique scheduling link to candidate <span className="text-slate-200 font-semibold">{createdResult.interview.candidateId?.name}</span>.
             </p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <Mail className={`w-4 h-4 ${createdResult.emailSent ? 'text-emerald-400' : 'text-amber-400'}`} />
+              <span className={createdResult.emailSent ? 'text-emerald-300' : 'text-amber-300'}>
+                {createdResult.emailSent
+                  ? `An email with the scheduling link was sent to ${createdResult.interview.candidateId?.email}.`
+                  : `Notification email could not be sent automatically. Please share the scheduling link manually.`}
+              </span>
+            </div>
+            {createdResult.emailPreviewUrl && (
+              <a
+                href={createdResult.emailPreviewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 underline underline-offset-2 mt-1"
+              >
+                <span>View Sent Email Preview (Dev)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
 
           <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
