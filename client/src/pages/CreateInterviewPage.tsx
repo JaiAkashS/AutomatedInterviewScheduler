@@ -35,7 +35,7 @@ export const CreateInterviewPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [createdResult, setCreatedResult] = useState<{ interview: any; schedulingUrl: string; emailSent?: boolean; emailPreviewUrl?: string } | null>(null);
+  const [createdResult, setCreatedResult] = useState<{ interview: any; schedulingUrl: string; emailSent?: boolean; emailPreviewUrl?: string; emailError?: string } | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
 
   useEffect(() => {
@@ -148,6 +148,11 @@ export const CreateInterviewPage: React.FC = () => {
                   : `Notification email could not be sent automatically. Please share the scheduling link manually.`}
               </span>
             </div>
+            {createdResult.emailError && (
+              <p className="text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-md mt-1">
+                Reason: {createdResult.emailError}
+              </p>
+            )}
             {createdResult.emailPreviewUrl && (
               <a
                 href={createdResult.emailPreviewUrl}

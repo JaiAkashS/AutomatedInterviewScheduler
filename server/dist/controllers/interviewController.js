@@ -97,6 +97,7 @@ const createInterview = async (req, res, next) => {
             schedulingUrl,
             emailSent: emailResult.success,
             emailPreviewUrl: emailResult.previewUrl || undefined,
+            emailError: !emailResult.success ? (emailResult.error || 'SMTP credentials or service not configured') : undefined,
         });
     }
     catch (error) {

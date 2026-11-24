@@ -121,6 +121,7 @@ export const createInterview = async (req: AuthRequest, res: Response, next: Nex
       schedulingUrl,
       emailSent: emailResult.success,
       emailPreviewUrl: emailResult.previewUrl || undefined,
+      emailError: !emailResult.success ? (emailResult.error || 'SMTP credentials or service not configured') : undefined,
     });
   } catch (error) {
     next(error);
