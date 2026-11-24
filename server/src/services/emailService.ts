@@ -101,6 +101,56 @@ export interface EmailSendResult {
 }
 
 /**
+ * Sends email via Resend HTTPS REST API (Port 443).
+ * Essential for cloud hosts like Render free tier which block outbound SMTP ports (25, 465, 587).
+ */
+const sendViaResend = async (
+  to: string,
+  subject: string,
+  html: string,
+  text: string
+): Promise<EmailSendResult | null> => {
+  if (!config.resendApiKey) return null;
+
+  try {
+    const fromAddress = config.smtp.from || 'onboarding@resend.dev';
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: [to],
+        subject,
+        html,
+        text,
+      }),
+    });
+
+    const data = (await res.json()) as any;
+    if (!res.ok) {
+      throw new Error(data?.message || `Resend API error (${res.status})`);
+    }
+
+    console.log(`[EmailService] Email successfully sent via Resend HTTPS API to ${to}. ID: ${data?.id}`);
+    return {
+      success: true,
+      messageId: data?.id,
+      previewUrl: false,
+    };
+  } catch (err: any) {
+    console.error(`[EmailService Resend Error] Failed to send email via Resend API to ${to}:`, err?.message || err);
+    return {
+      success: false,
+      error: `Resend error: ${err?.message || err}`,
+    };
+  }
+};
+
+/**
  * Sends an email to a candidate containing their personal interview scheduling link.
  */
 export const sendCandidateInviteEmail = async (
@@ -119,8 +169,6 @@ export const sendCandidateInviteEmail = async (
   } = params;
 
   try {
-    const transporter = await getEmailTransporter();
-
     const formattedExpires = expiresAt
       ? new Intl.DateTimeFormat('en-US', {
           dateStyle: 'full',
@@ -284,6 +332,13 @@ The AutoSched Team
 </html>
 `.trim();
 
+    // Prioritize Resend HTTPS REST API (Port 443) if configured - solves Render blocking SMTP ports
+    if (config.resendApiKey) {
+      const resendRes = await sendViaResend(candidateEmail, subject, htmlContent, textContent);
+      if (resendRes) return resendRes;
+    }
+
+    const transporter = await getEmailTransporter();
     const info = await transporter.sendMail({
       from: config.smtp.from,
       to: `"${candidateName}" <${candidateEmail}>`,
@@ -330,8 +385,6 @@ export const sendCandidateRescheduleEmail = async (
   } = params;
 
   try {
-    const transporter = await getEmailTransporter();
-
     const formattedExpires = expiresAt
       ? new Intl.DateTimeFormat('en-US', {
           dateStyle: 'full',
@@ -495,6 +548,13 @@ The AutoSched Team
 </html>
 `.trim();
 
+    // Prioritize Resend HTTPS REST API (Port 443) if configured - solves Render blocking SMTP ports
+    if (config.resendApiKey) {
+      const resendRes = await sendViaResend(candidateEmail, subject, htmlContent, textContent);
+      if (resendRes) return resendRes;
+    }
+
+    const transporter = await getEmailTransporter();
     const info = await transporter.sendMail({
       from: config.smtp.from,
       to: `"${candidateName}" <${candidateEmail}>`,

@@ -17,6 +17,7 @@ export const config = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   serverUrl: process.env.SERVER_URL || 'http://localhost:5000',
   nodeEnv: process.env.NODE_ENV || 'development',
+  resendApiKey: process.env.RESEND_API_KEY || '',
   smtp: {
     service: process.env.SMTP_SERVICE || '',
     host: process.env.SMTP_HOST || '',

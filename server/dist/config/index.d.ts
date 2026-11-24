@@ -9,6 +9,7 @@ export declare const config: {
     clientUrl: string;
     serverUrl: string;
     nodeEnv: string;
+    resendApiKey: string;
     smtp: {
         service: string;
         host: string;
