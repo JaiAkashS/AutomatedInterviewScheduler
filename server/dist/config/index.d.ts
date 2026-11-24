@@ -10,6 +10,7 @@ export declare const config: {
     serverUrl: string;
     nodeEnv: string;
     smtp: {
+        service: string;
         host: string;
         port: number;
         secure: boolean;

@@ -14,17 +14,41 @@ export const getEmailTransporter = async (): Promise<Transporter> => {
   }
 
   // 1. If real SMTP credentials are provided, use them
-  if (config.smtp.host && config.smtp.user && config.smtp.pass) {
-    cachedTransporter = nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
-      auth: {
-        user: config.smtp.user,
-        pass: config.smtp.pass,
-      },
-    });
-    console.log(`[EmailService] Configured SMTP transporter with host: ${config.smtp.host}:${config.smtp.port}`);
+  if ((config.smtp.host || config.smtp.service) && config.smtp.user && config.smtp.pass) {
+    const isGmail =
+      (config.smtp.service && config.smtp.service.toLowerCase().includes('gmail')) ||
+      (config.smtp.host && config.smtp.host.toLowerCase().includes('gmail'));
+
+    if (isGmail) {
+      cachedTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: config.smtp.user,
+          pass: config.smtp.pass,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      console.log(`[EmailService] Configured Gmail transporter with service: 'gmail' (SSL on port 465)`);
+    } else {
+      cachedTransporter = nodemailer.createTransport({
+        host: config.smtp.host,
+        port: config.smtp.port,
+        secure: config.smtp.secure,
+        auth: {
+          user: config.smtp.user,
+          pass: config.smtp.pass,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+      console.log(`[EmailService] Configured SMTP transporter with host: ${config.smtp.host}:${config.smtp.port}`);
+    }
     return cachedTransporter;
   }
 
